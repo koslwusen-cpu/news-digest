@@ -233,34 +233,64 @@ def fmt_length(secs):
 
 def render_item(i, tz, now, new_links):
     esc = html.escape
+    nt = " target='_blank' rel='noopener noreferrer'"
     badge = ""
     if new_links is not None and i["link"] in new_links:
         badge = ("<span style='background:#d93025;color:#fff;font-size:10px;font-weight:600;"
                  "padding:1px 5px;border-radius:3px;margin-right:6px'>NEW</span>")
     meta = " · ".join(x for x in (fmt_time(i["time"], tz, now), fmt_length(i.get("seconds"))) if x)
-    text = (f"{badge}<a href='{esc(i['link'])}' target='_blank' rel='noopener noreferrer' style='color:#1a4d8f;text-decoration:none;"
+    text = (f"{badge}<a href='{esc(i['link'])}'{nt} style='color:#1a4d8f;text-decoration:none;"
             f"font-size:15px;line-height:1.35'>{esc(i['title'])}</a>"
             f"<span style='color:#999;font-size:12px'> &nbsp;{esc(meta)}</span>")
     if i.get("thumb"):
         return ("<table cellpadding='0' cellspacing='0' style='margin:6px 0;border-collapse:collapse'><tr>"
                 f"<td style='width:128px;vertical-align:top;padding-right:10px'>"
-                f"<a href='{esc(i['link'])}' target='_blank' rel='noopener noreferrer'><img src='{esc(i['thumb'])}' width='120' "
+                f"<a href='{esc(i['link'])}'{nt}><img src='{esc(i['thumb'])}' width='120' "
                 f"style='display:block;border-radius:6px' alt=''></a></td>"
                 f"<td style='vertical-align:top'>{text}</td></tr></table>")
+    if i["kind"] == "written":   # a dash before each written story, wrapped lines indented
+        return (f"<p style='margin:6px 0;padding-left:16px;text-indent:-16px'>"
+                f"<span style='color:#8a5a00;display:inline-block;width:16px;text-indent:0'>–</span>{text}</p>")
     return f"<p style='margin:6px 0'>{text}</p>"
+
+
+PAGE_CSS = (
+    ".older-note{display:none;color:#999;font-size:12px;margin:2px 0 6px}"
+    ".collapsed .older{display:none}.collapsed .older-note{display:block}"
+    ".srchead{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:22px 0 6px}"
+    ".mini{padding:3px 9px;border-radius:6px;border:1px solid #c9b48a;background:transparent;color:#8a5a00;"
+    "font-size:12px;cursor:pointer;white-space:nowrap}"
+    ".toc{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}"
+    ".toc a{padding:4px 10px;border-radius:14px;background:#e9e4da;color:#1d1d1f;text-decoration:none;font-size:13px}"
+    ".totop{display:block;text-align:right;font-size:13px;color:#8a5a00;text-decoration:none;margin:14px 0 0}"
+    "#fab{position:fixed;right:16px;bottom:16px;width:44px;height:44px;border-radius:22px;background:#1d1d1f;"
+    "color:#fff;text-align:center;line-height:44px;font-size:20px;text-decoration:none;opacity:.85}"
+)
+
+PAGE_JS = (
+    "<script>"
+    "function setSrc(el,c){el.classList.toggle('collapsed',c);var b=el.querySelector('.mini');"
+    "if(b)b.textContent=c?'Show older':'Hide older';}"
+    "function toggleSrc(b){var el=b.closest('.src');setSrc(el,!el.classList.contains('collapsed'));}"
+    "function toggleOlder(){var t=document.getElementById('tg');var c=t.textContent.indexOf('Hide')===0;"
+    "document.querySelectorAll('.src').forEach(function(el){setSrc(el,c);});"
+    "t.textContent=c?'Show all stories':'Hide older stories';}"
+    "</script>"
+)
 
 
 def render(grouped, errors, tz, now, heading, page_links=None, new_links=None, since_label=None,
            toggle=False):
+    """toggle=True builds the web page (buttons, contents, back-to-top); False builds the email."""
     esc = html.escape
+    nt = " target='_blank' rel='noopener noreferrer'"
     total = sum(len(items) for groups in grouped.values() for _, items, _ in groups)
     p = ["<!DOCTYPE html><html><head><meta charset='utf-8'>",
          "<meta name='viewport' content='width=device-width,initial-scale=1'>",
          f"<title>{esc(heading)}</title>",
-         "<style>.older-note{display:none;color:#999;font-size:12px;margin:2px 0 6px}"
-         ".hide-older .older{display:none}.hide-older .older-note{display:block}</style></head>",
+         f"<style>html{{scroll-behavior:smooth}}{PAGE_CSS}</style></head>",
          "<body style='margin:0;background:#f4f2ee;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1d1d1f'>",
-         "<div style='max-width:680px;margin:auto;padding:20px 16px'>",
+         "<div id='top' style='max-width:680px;margin:auto;padding:20px 16px 72px'>",
          f"<h1 style='font-family:Georgia,serif;font-size:24px;margin:0 0 4px'>{esc(heading)}</h1>",
          f"<p style='color:#777;font-size:13px;margin:0 0 12px'>{total} items · "
          f"updated {now.astimezone(tz):%A %d %B, %H:%M}</p>"]
@@ -268,7 +298,7 @@ def render(grouped, errors, tz, now, heading, page_links=None, new_links=None, s
         btn = ("display:inline-block;padding:9px 14px;margin:0 8px 8px 0;border-radius:8px;"
                "background:#1d1d1f;color:#fff;text-decoration:none;font-size:14px")
         p.append("<p style='margin:0 0 8px'>" + "".join(
-            f"<a href='{esc(url)}' target='_blank' rel='noopener noreferrer' style='{btn}'>{esc(label)}</a>" for label, url in page_links) + "</p>")
+            f"<a href='{esc(url)}'{nt} style='{btn}'>{esc(label)}</a>" for label, url in page_links) + "</p>")
     if toggle:
         p.append("<p style='margin:0 0 8px'><button id='tg' onclick='toggleOlder()' style='padding:8px 14px;"
                  "border-radius:8px;border:1px solid #1d1d1f;background:transparent;color:#1d1d1f;"
@@ -282,6 +312,10 @@ def render(grouped, errors, tz, now, heading, page_links=None, new_links=None, s
              for k, icon, label in KINDS if grouped.get(k)]
     if jumps:
         p.append("<p style='font-size:14px;margin:0 0 8px'>" + " &nbsp;·&nbsp; ".join(jumps) + "</p>")
+    if toggle and grouped.get("written"):   # contents: one chip per written source
+        p.append("<div class='toc'>" + "".join(
+            f"<a href='#written-{n}'>{esc(name)}</a>"
+            for n, (name, _, _) in enumerate(grouped["written"])) + "</div>")
 
     for kind, icon, label in KINDS:
         groups = grouped.get(kind)
@@ -289,27 +323,34 @@ def render(grouped, errors, tz, now, heading, page_links=None, new_links=None, s
             continue
         p.append(f"<h2 id='{kind}' style='font-family:Georgia,serif;font-size:20px;"
                  f"margin:28px 0 4px;border-bottom:2px solid #1d1d1f;padding-bottom:4px'>{icon} {label}</h2>")
-        for name, items, visible in groups:
-            p.append(f"<h3 style='font-family:Georgia,serif;font-size:19px;font-weight:700;"
-                     f"color:#8a5a00;margin:22px 0 6px'>{esc(name)}</h3>")
+        for n, (name, items, visible) in enumerate(groups):
+            extra = items[visible:]
+            mini = ""
+            if toggle and kind == "written" and extra:
+                mini = "<button class='mini' onclick='toggleSrc(this)'>Hide older</button>"
+            p.append(f"<div class='src' id='{kind}-{n}'><div class='srchead'>"
+                     f"<h3 style='font-family:Georgia,serif;font-size:19px;font-weight:700;"
+                     f"color:#8a5a00;margin:0'>{esc(name)}</h3>{mini}</div>")
             for i in items[:visible]:
                 p.append(render_item(i, tz, now, new_links))
-            extra = items[visible:]
-            if extra:   # page only: shown by default, hidden by "Hide older stories"
+            if extra:   # page only: shown by default, hidden by the buttons
                 p.append("<div class='older'>")
                 for i in extra:
                     p.append(render_item(i, tz, now, new_links))
                 p.append(f"</div><p class='older-note'>{len(extra)} older hidden</p>")
+            p.append("</div>")
+        if toggle:
+            p.append("<a class='totop' href='#top'>↑ Back to top</a>")
 
     if total == 0:
         p.append("<p style='color:#777'>Nothing new from your sources since last time.</p>")
     if errors:
         p.append("<p style='color:#a33;font-size:12px;margin-top:28px'>Couldn't reach: "
                  + esc("; ".join(errors)) + "</p>")
+    p.append("</div>")
     if toggle:
-        p.append("<script>function toggleOlder(){var h=document.body.classList.toggle('hide-older');"
-                 "document.getElementById('tg').textContent=h?'Show all stories':'Hide older stories';}</script>")
-    p.append("</div></body></html>")
+        p.append("<a id='fab' href='#top' aria-label='Back to top'>↑</a>" + PAGE_JS)
+    p.append("</body></html>")
     return "\n".join(p), total
 
 
