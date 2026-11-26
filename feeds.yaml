@@ -6,17 +6,20 @@
 #   youtube:      a YouTube channel ID (starts with UC...). Shorts are skipped.
 #   google_news:  a Google News search, for sites with no feed of their own
 #                 (add  lang: fr  for French results)
+# ORDER: within each format (written / audio / video), sources appear on the
+# page and in the email in the order they're listed below. Move a block to reorder.
+#
 # Optional, per source:
-#   max: 2          items per source in the email (and shown before "Show more" on the page)
-#   page_max: 15    how many the page can show in total, behind "Show more"
+#   max: 2          items per source in the email (and kept when you tap "Hide older stories")
+#   page_max: 15    cap how many the page shows for this source (default: everything from the last 24h)
 #   email: false    page only: the source never goes in the email
 # ---------------------------------------------------------------
 
 settings:
   timezone: Europe/Paris
-  email_hours: [6, 12, 18]   # local times the email goes out
-  default_max: 3             # items per source per email
-  page_max: 10               # items per source on the page (extras behind "Show more")
+  email_hours: [6, 17]       # local times the email goes out
+  default_max: 3             # items per source in the email, and kept by "Hide older stories"
+  # page_max: 20             # optional cap on items per source on the page (default: no cap)
   lookback_hours: 24         # never show anything older than this
 
 sources:

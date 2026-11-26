@@ -43,7 +43,7 @@ def load_config():
     s.setdefault("timezone", "Europe/Paris")
     s.setdefault("email_hours", [6, 12, 18])
     s.setdefault("default_max", 3)
-    s.setdefault("page_max", 10)
+    s.setdefault("page_max", None)   # None = show everything from the lookback window
     s.setdefault("lookback_hours", 24)
     return s, cfg["sources"]
 
@@ -199,8 +199,11 @@ def select(collected, settings, for_email, skip=None):
         if skip is not None:
             items = [i for i in items if i["link"] not in skip]
         visible = src.get("max", settings["default_max"])
-        limit = visible if for_email else max(visible, src.get("page_max", settings["page_max"]))
-        items = items[:limit]
+        if for_email:
+            items = items[:visible]
+        else:
+            cap = src.get("page_max", settings["page_max"])
+            items = items if cap is None else items[:max(visible, cap)]
         if items:
             grouped.setdefault(src.get("kind", "written"), []).append((src["name"], items, visible))
     return grouped
@@ -235,26 +238,27 @@ def render_item(i, tz, now, new_links):
         badge = ("<span style='background:#d93025;color:#fff;font-size:10px;font-weight:600;"
                  "padding:1px 5px;border-radius:3px;margin-right:6px'>NEW</span>")
     meta = " · ".join(x for x in (fmt_time(i["time"], tz, now), fmt_length(i.get("seconds"))) if x)
-    text = (f"{badge}<a href='{esc(i['link'])}' style='color:#1a4d8f;text-decoration:none;"
+    text = (f"{badge}<a href='{esc(i['link'])}' target='_blank' rel='noopener noreferrer' style='color:#1a4d8f;text-decoration:none;"
             f"font-size:15px;line-height:1.35'>{esc(i['title'])}</a>"
             f"<span style='color:#999;font-size:12px'> &nbsp;{esc(meta)}</span>")
     if i.get("thumb"):
         return ("<table cellpadding='0' cellspacing='0' style='margin:6px 0;border-collapse:collapse'><tr>"
                 f"<td style='width:128px;vertical-align:top;padding-right:10px'>"
-                f"<a href='{esc(i['link'])}'><img src='{esc(i['thumb'])}' width='120' "
+                f"<a href='{esc(i['link'])}' target='_blank' rel='noopener noreferrer'><img src='{esc(i['thumb'])}' width='120' "
                 f"style='display:block;border-radius:6px' alt=''></a></td>"
                 f"<td style='vertical-align:top'>{text}</td></tr></table>")
     return f"<p style='margin:6px 0'>{text}</p>"
 
 
-def render(grouped, errors, tz, now, heading, page_links=None, new_links=None, since_label=None):
+def render(grouped, errors, tz, now, heading, page_links=None, new_links=None, since_label=None,
+           toggle=False):
     esc = html.escape
     total = sum(len(items) for groups in grouped.values() for _, items, _ in groups)
     p = ["<!DOCTYPE html><html><head><meta charset='utf-8'>",
          "<meta name='viewport' content='width=device-width,initial-scale=1'>",
          f"<title>{esc(heading)}</title>",
-         "<style>summary{cursor:pointer;color:#8a5a00;font-size:13px;margin:4px 0 8px;"
-         "list-style:none}summary::-webkit-details-marker{display:none}</style></head>",
+         "<style>.older-note{display:none;color:#999;font-size:12px;margin:2px 0 6px}"
+         ".hide-older .older{display:none}.hide-older .older-note{display:block}</style></head>",
          "<body style='margin:0;background:#f4f2ee;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1d1d1f'>",
          "<div style='max-width:680px;margin:auto;padding:20px 16px'>",
          f"<h1 style='font-family:Georgia,serif;font-size:24px;margin:0 0 4px'>{esc(heading)}</h1>",
@@ -264,7 +268,11 @@ def render(grouped, errors, tz, now, heading, page_links=None, new_links=None, s
         btn = ("display:inline-block;padding:9px 14px;margin:0 8px 8px 0;border-radius:8px;"
                "background:#1d1d1f;color:#fff;text-decoration:none;font-size:14px")
         p.append("<p style='margin:0 0 8px'>" + "".join(
-            f"<a href='{esc(url)}' style='{btn}'>{esc(label)}</a>" for label, url in page_links) + "</p>")
+            f"<a href='{esc(url)}' target='_blank' rel='noopener noreferrer' style='{btn}'>{esc(label)}</a>" for label, url in page_links) + "</p>")
+    if toggle:
+        p.append("<p style='margin:0 0 8px'><button id='tg' onclick='toggleOlder()' style='padding:8px 14px;"
+                 "border-radius:8px;border:1px solid #1d1d1f;background:transparent;color:#1d1d1f;"
+                 "font-size:14px;cursor:pointer'>Hide older stories</button></p>")
     if new_links is not None:
         p.append("<p style='color:#777;font-size:12px;margin:0 0 8px'>"
                  "<span style='background:#d93025;color:#fff;font-size:10px;font-weight:600;"
@@ -282,22 +290,25 @@ def render(grouped, errors, tz, now, heading, page_links=None, new_links=None, s
         p.append(f"<h2 id='{kind}' style='font-family:Georgia,serif;font-size:20px;"
                  f"margin:28px 0 4px;border-bottom:2px solid #1d1d1f;padding-bottom:4px'>{icon} {label}</h2>")
         for name, items, visible in groups:
-            p.append(f"<h3 style='font-size:13px;text-transform:uppercase;letter-spacing:.05em;"
-                     f"color:#8a5a00;margin:16px 0 6px'>{esc(name)}</h3>")
+            p.append(f"<h3 style='font-family:Georgia,serif;font-size:19px;font-weight:700;"
+                     f"color:#8a5a00;margin:22px 0 6px'>{esc(name)}</h3>")
             for i in items[:visible]:
                 p.append(render_item(i, tz, now, new_links))
             extra = items[visible:]
-            if extra:
-                p.append(f"<details><summary>＋ Show {len(extra)} more</summary>")
+            if extra:   # page only: shown by default, hidden by "Hide older stories"
+                p.append("<div class='older'>")
                 for i in extra:
                     p.append(render_item(i, tz, now, new_links))
-                p.append("</details>")
+                p.append(f"</div><p class='older-note'>{len(extra)} older hidden</p>")
 
     if total == 0:
         p.append("<p style='color:#777'>Nothing new from your sources since last time.</p>")
     if errors:
         p.append("<p style='color:#a33;font-size:12px;margin-top:28px'>Couldn't reach: "
                  + esc("; ".join(errors)) + "</p>")
+    if toggle:
+        p.append("<script>function toggleOlder(){var h=document.body.classList.toggle('hide-older');"
+                 "document.getElementById('tg').textContent=h?'Show all stories':'Hide older stories';}</script>")
     p.append("</div></body></html>")
     return "\n".join(p), total
 
@@ -384,7 +395,7 @@ def run_page(out_path, with_buttons=True):
                      if i["time"] and i["time"] > last}
         since_label = fmt_time(last, tz, now)
     body, total = render(grouped, errors, tz, now, "Your news",
-                         page_links=links, new_links=new_links, since_label=since_label)
+                         page_links=links, new_links=new_links, since_label=since_label, toggle=True)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(body, encoding="utf-8")
     print(f"Wrote {out_path} ({total} items, {len(errors)} unreachable)")
