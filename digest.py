@@ -285,12 +285,16 @@ def render(grouped, errors, tz, now, heading, page_links=None, new_links=None, s
     esc = html.escape
     nt = " target='_blank' rel='noopener noreferrer'"
     total = sum(len(items) for groups in grouped.values() for _, items, _ in groups)
+    # The web page uses (almost) the full width of the screen, with a small side margin that
+    # grows a little on bigger screens. The email keeps a 680px column, which email apps expect.
+    box = ("padding:20px max(12px,3vw) 72px" if toggle
+           else "max-width:680px;margin:auto;padding:20px 16px 72px")
     p = ["<!DOCTYPE html><html><head><meta charset='utf-8'>",
          "<meta name='viewport' content='width=device-width,initial-scale=1'>",
          f"<title>{esc(heading)}</title>",
          f"<style>html{{scroll-behavior:smooth}}{PAGE_CSS}</style></head>",
          "<body style='margin:0;background:#f4f2ee;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1d1d1f'>",
-         "<div id='top' style='max-width:680px;margin:auto;padding:20px 16px 72px'>",
+         f"<div id='top' style='{box}'>",
          f"<h1 style='font-family:Georgia,serif;font-size:24px;margin:0 0 4px'>{esc(heading)}</h1>",
          f"<p style='color:#777;font-size:13px;margin:0 0 12px'>{total} items · "
          f"updated {now.astimezone(tz):%A %d %B, %H:%M}</p>"]
