@@ -73,6 +73,68 @@ sources:
     kind: written
     google_news: site:cnn.com
 
+  - name: RFI
+    kind: written
+    url: https://www.rfi.fr/fr/rss
+
+  - name: Les Echos
+    kind: written
+    url: https://services.lesechos.fr/rss/les-echos-economie.xml
+
+  - name: Mediapart        # no public feed of its own
+    kind: written
+    google_news: site:mediapart.fr
+    lang: fr
+
+  - name: Courrier international
+    kind: written
+    url: https://www.courrierinternational.com/feed/all/rss.xml
+
+  - name: Financial Times
+    kind: written
+    url: https://www.ft.com/world?format=rss
+
+  - name: The Economist
+    kind: written
+    url: https://www.economist.com/latest/rss.xml
+
+  - name: El País
+    kind: written
+    url: https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada
+
+  - name: La Nación
+    kind: written
+    url: https://www.lanacion.com.ar/arc/outboundfeeds/rss/?outputType=xml
+
+  - name: BBC Mundo
+    kind: written
+    url: https://feeds.bbci.co.uk/mundo/rss.xml
+
+  - name: BBC Afrique
+    kind: written
+    url: https://feeds.bbci.co.uk/afrique/rss.xml
+
+  - name: Hespress         # French edition
+    kind: written
+    url: https://fr.hespress.com/feed
+
+  - name: Morocco World News
+    kind: written
+    google_news: site:moroccoworldnews.com
+
+  - name: Yabiladi
+    kind: written
+    google_news: site:yabiladi.com
+    lang: fr
+
+  - name: The Straits Times   # its own feed stopped in Sept 2026
+    kind: written
+    google_news: site:straitstimes.com
+
+  - name: The Times of India
+    kind: written
+    url: https://timesofindia.indiatimes.com/rssfeedstopstories.cms
+
   # ---------- Audio ----------
   - name: France Inter (journaux)
     kind: audio
@@ -168,3 +230,51 @@ sources:
     kind: video
     youtube: UC3XTzVzaHQEd30rQbuvCtTQ
     max: 2
+
+  # Busy channels below are capped at 10 videos each on the page.
+  - name: France 24
+    kind: video
+    youtube: UCCCPCZNChQdGa9EkATeye4g      # France 24 in French
+    max: 2
+    page_max: 10
+
+  - name: ARTE
+    kind: video
+    youtube: UCVogAsASqbceBmQMi1WA39g      # ARTE.tv Documentary (English)
+    max: 2
+
+  - name: TF1 INFO
+    kind: video
+    youtube: UCsrPUA0ZSDCNZC6wyRlR7ZA
+    max: 2
+    page_max: 10
+
+  - name: Africanews
+    kind: video
+    youtube: UC1_E8NeF5QHY2dtdLRBCCLA
+    max: 2
+    page_max: 10
+
+  - name: PBS NewsHour
+    kind: video
+    youtube: UC6ZFN9Tx6xh-skXCuRHCDpQ
+    max: 2
+    page_max: 10
+
+  - name: NBC News
+    kind: video
+    youtube: UCeY0bbntWzzVIaj2z3QigXg
+    max: 2
+    page_max: 10
+
+  - name: CBS News
+    kind: video
+    youtube: UC8p1vwvWtl6T73JiExfWs1g
+    max: 2
+    page_max: 10
+
+  - name: CNN en Español
+    kind: video
+    youtube: UC_lEiu6917IJz03TnntWUaQ
+    max: 2
+    page_max: 10
