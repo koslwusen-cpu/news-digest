@@ -109,6 +109,8 @@ def fetch_source(src, since):
         items = []
         for e in feed.entries:
             link = e.get("link", "")
+            if not link.startswith(("https://", "http://")):
+                continue
             title = clean_title(e.get("title"), via_google)
             if "/shorts/" in link or "#shorts" in title.lower():
                 continue
