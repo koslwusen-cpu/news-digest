@@ -1,0 +1,133 @@
+# ---------------------------------------------------------------
+# Your news sources. Edit freely: add, remove, change "max".
+#
+# Each source needs a name, a kind (written / audio / video) and ONE of:
+#   url:          a normal RSS feed
+#   youtube:      a YouTube channel ID (starts with UC...). Shorts are skipped.
+#   google_news:  a Google News search, for sites with no feed of their own
+#                 (add  lang: fr  for French results)
+# max: how many items per source per email (default below)
+# ---------------------------------------------------------------
+
+settings:
+  timezone: Europe/Paris
+  email_hours: [6, 12, 18]   # local times the email goes out
+  default_max: 3             # items per source per email
+  lookback_hours: 24         # never show anything older than this
+
+sources:
+
+  # ---------- Written ----------
+  - name: Le Monde
+    kind: written
+    url: https://www.lemonde.fr/rss/une.xml
+
+  - name: Le Figaro
+    kind: written
+    url: https://www.lefigaro.fr/rss/figaro_une.xml
+
+  - name: Libération
+    kind: written
+    url: https://www.liberation.fr/arc/outboundfeeds/rss-all/?outputType=xml
+
+  - name: franceinfo
+    kind: written
+    url: https://www.francetvinfo.fr/titres.rss
+
+  - name: Wall Street Journal
+    kind: written
+    url: https://feeds.content.dowjones.io/public/rss/RSSWorldNews
+
+  - name: BBC
+    kind: written
+    url: https://feeds.bbci.co.uk/news/world/rss.xml
+
+  - name: The Guardian
+    kind: written
+    url: https://www.theguardian.com/world/rss
+
+  - name: Al Jazeera
+    kind: written
+    url: https://www.aljazeera.com/xml/rss/all.xml
+
+  - name: NPR
+    kind: written
+    url: https://feeds.npr.org/1001/rss.xml
+
+  - name: Reuters          # Reuters stopped its own feeds in 2020
+    kind: written
+    google_news: site:reuters.com/world
+
+  - name: AP               # AP's own feeds stopped in 2024
+    kind: written
+    google_news: site:apnews.com
+
+  - name: CNN              # CNN's own feeds stopped in 2023
+    kind: written
+    google_news: site:cnn.com
+
+  # ---------- Audio ----------
+  - name: France Inter (journaux)
+    kind: audio
+    url: https://radiofrance-podcast.net/podcast09/rss_21003.xml
+    max: 2
+
+  - name: NPR News Now     # 5-minute bulletin, updated hourly
+    kind: audio
+    url: https://feeds.npr.org/500005/podcast.xml
+    max: 1
+
+  # - name: WSJ What's News
+  #   kind: audio
+  #   url: https://feeds.simplecast.com/BA5QWI2p
+  #   max: 1
+
+  # ---------- Video ----------
+  - name: HugoDécrypte – Actus du jour
+    kind: video
+    youtube: UCAcAnMF0OrCtUep3Y4M-ZPw
+    max: 2
+
+  # - name: HugoDécrypte – Grands formats
+  #   kind: video
+  #   youtube: UCUo1RqYV8tGjV38sQ8S5p9A
+
+  - name: Gaspard G
+    kind: video
+    youtube: UCI-8QMy9n3I5Pv6mTmXoAXA
+    max: 2
+
+  - name: Brut
+    kind: video
+    youtube: UCSKdvgqdnj72_SLggp7BDTg
+
+  - name: BFMTV
+    kind: video
+    youtube: UCXwDLMDV86ldKoFVc_g8P0g
+
+  - name: AFP
+    kind: video
+    youtube: UCckz6n8QccTd6K_xdwKqa0A      # AFP in French
+    # youtube: UC86dbj-lbDks_hZ5gRKL49Q    # AFP News Agency (English)
+
+  - name: CNN
+    kind: video
+    youtube: UCupvZG-5ko_eiXAupbDfxWw
+
+  - name: DW News
+    kind: video
+    youtube: UCknLrEdhRCp1aegoMqRaCZg
+
+  - name: DW Español
+    kind: video
+    youtube: UCT4Jg8h03dD0iN3Pb5L0PMA
+
+  - name: More Perfect Union
+    kind: video
+    youtube: UCehBVAPy-bxmnbNARF-_tvA
+    max: 2
+
+  - name: Last Week Tonight
+    kind: video
+    youtube: UC3XTzVzaHQEd30rQbuvCtTQ
+    max: 2
