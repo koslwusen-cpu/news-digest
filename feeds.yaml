@@ -8,6 +8,8 @@
 #                 (add  lang: fr  for French results)
 # ORDER: within each format (written / audio / video), sources appear on the
 # page and in the email in the order they're listed below. Move a block to reorder.
+# They are grouped by bias: Not rated, Center, Lean left, Lean right, Left, Right
+# (see the "Bias (summary)" column in the sources sheet).
 #
 # Optional, per source:
 #   max: 2          items per source in the email (and kept when you tap "Hide older stories")
@@ -25,22 +27,16 @@ settings:
 sources:
 
   # ---------- Written ----------
-  - name: Le Monde
+  # · Not rated
+  - name: Courrier international
     kind: written
-    url: https://www.lemonde.fr/rss/une.xml
+    url: https://www.courrierinternational.com/feed/all/rss.xml
 
-  - name: Le Figaro
+  - name: Hespress         # French edition
     kind: written
-    url: https://www.lefigaro.fr/rss/figaro_une.xml
+    url: https://fr.hespress.com/feed
 
-  - name: Libération
-    kind: written
-    url: https://www.liberation.fr/arc/outboundfeeds/rss-all/?outputType=xml
-
-  - name: franceinfo
-    kind: written
-    url: https://www.francetvinfo.fr/titres.rss
-
+  # · Center
   - name: Wall Street Journal
     kind: written
     url: https://feeds.content.dowjones.io/public/rss/RSSWorldNews
@@ -48,6 +44,44 @@ sources:
   - name: BBC
     kind: written
     url: https://feeds.bbci.co.uk/news/world/rss.xml
+
+  - name: Reuters          # Reuters stopped its own feeds in 2020
+    kind: written
+    google_news: site:reuters.com/world
+
+  - name: RFI
+    kind: written
+    url: https://www.rfi.fr/fr/rss
+
+  - name: Financial Times
+    kind: written
+    url: https://www.ft.com/world?format=rss
+
+  - name: The Economist
+    kind: written
+    url: https://www.economist.com/latest/rss.xml
+
+  - name: BBC Mundo
+    kind: written
+    url: https://feeds.bbci.co.uk/mundo/rss.xml
+
+  - name: BBC Afrique
+    kind: written
+    url: https://feeds.bbci.co.uk/afrique/rss.xml
+
+  - name: Yabiladi
+    kind: written
+    google_news: site:yabiladi.com
+    lang: fr
+
+  # · Lean left
+  - name: Le Monde
+    kind: written
+    url: https://www.lemonde.fr/rss/une.xml
+
+  - name: franceinfo
+    kind: written
+    url: https://www.francetvinfo.fr/titres.rss
 
   - name: The Guardian
     kind: written
@@ -61,10 +95,6 @@ sources:
     kind: written
     url: https://feeds.npr.org/1001/rss.xml
 
-  - name: Reuters          # Reuters stopped its own feeds in 2020
-    kind: written
-    google_news: site:reuters.com/world
-
   - name: AP               # AP's own feeds stopped in 2024
     kind: written
     google_news: site:apnews.com
@@ -73,59 +103,22 @@ sources:
     kind: written
     google_news: site:cnn.com
 
-  - name: RFI
-    kind: written
-    url: https://www.rfi.fr/fr/rss
-
-  - name: Les Echos
-    kind: written
-    url: https://services.lesechos.fr/rss/les-echos-economie.xml
-
-  - name: Mediapart        # no public feed of its own
-    kind: written
-    google_news: site:mediapart.fr
-    lang: fr
-
-  - name: Courrier international
-    kind: written
-    url: https://www.courrierinternational.com/feed/all/rss.xml
-
-  - name: Financial Times
-    kind: written
-    url: https://www.ft.com/world?format=rss
-
-  - name: The Economist
-    kind: written
-    url: https://www.economist.com/latest/rss.xml
-
   - name: El País
     kind: written
     url: https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada
+
+  # · Lean right
+  - name: Les Echos
+    kind: written
+    url: https://services.lesechos.fr/rss/les-echos-economie.xml
 
   - name: La Nación
     kind: written
     url: https://www.lanacion.com.ar/arc/outboundfeeds/rss/?outputType=xml
 
-  - name: BBC Mundo
-    kind: written
-    url: https://feeds.bbci.co.uk/mundo/rss.xml
-
-  - name: BBC Afrique
-    kind: written
-    url: https://feeds.bbci.co.uk/afrique/rss.xml
-
-  - name: Hespress         # French edition
-    kind: written
-    url: https://fr.hespress.com/feed
-
   - name: Morocco World News
     kind: written
     google_news: site:moroccoworldnews.com
-
-  - name: Yabiladi
-    kind: written
-    google_news: site:yabiladi.com
-    lang: fr
 
   - name: The Straits Times   # its own feed stopped in Sept 2026
     kind: written
@@ -135,17 +128,24 @@ sources:
     kind: written
     url: https://timesofindia.indiatimes.com/rssfeedstopstories.cms
 
+  # · Left
+  - name: Libération
+    kind: written
+    url: https://www.liberation.fr/arc/outboundfeeds/rss-all/?outputType=xml
+
+  - name: Mediapart        # no public feed of its own
+    kind: written
+    google_news: site:mediapart.fr
+    lang: fr
+
+  # · Right
+  - name: Le Figaro
+    kind: written
+    url: https://www.lefigaro.fr/rss/figaro_une.xml
+
+
   # ---------- Audio ----------
-  - name: France Inter (journaux)
-    kind: audio
-    url: https://radiofrance-podcast.net/podcast09/rss_21003.xml
-    max: 2
-
-  - name: NPR News Now     # 5-minute bulletin, updated hourly
-    kind: audio
-    url: https://feeds.npr.org/500005/podcast.xml
-    max: 1
-
+  # · Center
   - name: BBC Global News Podcast
     kind: audio
     url: https://podcasts.files.bbci.co.uk/p02nq0gn.rss
@@ -156,14 +156,25 @@ sources:
     url: https://feeds.megaphone.fm/reutersworldnews
     max: 1
 
-  - name: CNN 5 Things
-    kind: audio
-    url: https://feeds.megaphone.fm/WMHY2007701094
-    max: 1
-
   - name: WSJ What's News
     kind: audio
     url: https://feeds.simplecast.com/BA5QWI2p
+    max: 1
+
+  # · Lean left
+  - name: France Inter (journaux)
+    kind: audio
+    url: https://radiofrance-podcast.net/podcast09/rss_21003.xml
+    max: 2
+
+  - name: NPR News Now     # 5-minute bulletin, updated hourly
+    kind: audio
+    url: https://feeds.npr.org/500005/podcast.xml
+    max: 1
+
+  - name: CNN 5 Things
+    kind: audio
+    url: https://feeds.megaphone.fm/WMHY2007701094
     max: 1
 
   - name: The Guardian – Today in Focus
@@ -181,7 +192,9 @@ sources:
     url: https://feeds.acast.com/public/shows/68db9d2509b1c365e44318ca
     max: 1
 
+
   # ---------- Video ----------
+  # · Not rated
   - name: HugoDécrypte – Actus du jour
     kind: video
     youtube: UCAcAnMF0OrCtUep3Y4M-ZPw
@@ -196,22 +209,16 @@ sources:
     youtube: UCI-8QMy9n3I5Pv6mTmXoAXA
     max: 2
 
-  - name: Brut
+  - name: Last Week Tonight
     kind: video
-    youtube: UCSKdvgqdnj72_SLggp7BDTg
+    youtube: UC3XTzVzaHQEd30rQbuvCtTQ
+    max: 2
 
-  - name: BFMTV
-    kind: video
-    youtube: UCXwDLMDV86ldKoFVc_g8P0g
-
+  # · Center
   - name: AFP
     kind: video
     youtube: UCckz6n8QccTd6K_xdwKqa0A      # AFP in French
     # youtube: UC86dbj-lbDks_hZ5gRKL49Q    # AFP News Agency (English)
-
-  - name: CNN
-    kind: video
-    youtube: UCupvZG-5ko_eiXAupbDfxWw
 
   - name: DW News
     kind: video
@@ -221,33 +228,27 @@ sources:
     kind: video
     youtube: UCT4Jg8h03dD0iN3Pb5L0PMA
 
-  - name: More Perfect Union
-    kind: video
-    youtube: UCehBVAPy-bxmnbNARF-_tvA
-    max: 2
-
-  - name: Last Week Tonight
-    kind: video
-    youtube: UC3XTzVzaHQEd30rQbuvCtTQ
-    max: 2
-
-  # Busy channels below are capped at 10 videos each on the page.
   - name: France 24
     kind: video
     youtube: UCCCPCZNChQdGa9EkATeye4g      # France 24 in French
     max: 2
     page_max: 10
 
+  - name: CBS News
+    kind: video
+    youtube: UC8p1vwvWtl6T73JiExfWs1g
+    max: 2
+    page_max: 10
+
+  # · Lean left
+  - name: CNN
+    kind: video
+    youtube: UCupvZG-5ko_eiXAupbDfxWw
+
   - name: ARTE
     kind: video
     youtube: UCVogAsASqbceBmQMi1WA39g      # ARTE.tv Documentary (English)
     max: 2
-
-  - name: TF1 INFO
-    kind: video
-    youtube: UCsrPUA0ZSDCNZC6wyRlR7ZA
-    max: 2
-    page_max: 10
 
   - name: Africanews
     kind: video
@@ -267,14 +268,29 @@ sources:
     max: 2
     page_max: 10
 
-  - name: CBS News
-    kind: video
-    youtube: UC8p1vwvWtl6T73JiExfWs1g
-    max: 2
-    page_max: 10
-
   - name: CNN en Español
     kind: video
     youtube: UC_lEiu6917IJz03TnntWUaQ
     max: 2
     page_max: 10
+
+  # · Lean right
+  - name: BFMTV
+    kind: video
+    youtube: UCXwDLMDV86ldKoFVc_g8P0g
+
+  - name: TF1 INFO
+    kind: video
+    youtube: UCsrPUA0ZSDCNZC6wyRlR7ZA
+    max: 2
+    page_max: 10
+
+  # · Left
+  - name: Brut
+    kind: video
+    youtube: UCSKdvgqdnj72_SLggp7BDTg
+
+  - name: More Perfect Union
+    kind: video
+    youtube: UCehBVAPy-bxmnbNARF-_tvA
+    max: 2
