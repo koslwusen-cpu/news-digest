@@ -8,9 +8,11 @@
 import html
 import json
 import os
+import re
 import smtplib
 import socket
 import sys
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
@@ -41,6 +43,7 @@ def load_config():
     s.setdefault("timezone", "Europe/Paris")
     s.setdefault("email_hours", [6, 12, 18])
     s.setdefault("default_max", 3)
+    s.setdefault("page_max", 10)
     s.setdefault("lookback_hours", 24)
     return s, cfg["sources"]
 
@@ -86,7 +89,7 @@ def entry_time(e):
 def thumbnail(e):
     for key in ("media_thumbnail", "media_content"):
         items = e.get(key)
-        if items and items[0].get("url"):
+        if items and str(items[0].get("url", "")).startswith("https://"):
             return items[0]["url"]
     return None
 
@@ -98,6 +101,20 @@ def clean_title(title, via_google):
     return title
 
 
+def parse_seconds(value):
+    """Podcast durations come as '1234', '20:35' or '1:02:03'."""
+    if not value:
+        return None
+    try:
+        parts = [int(float(p)) for p in str(value).strip().split(":")]
+    except ValueError:
+        return None
+    secs = 0
+    for p in parts:
+        secs = secs * 60 + p
+    return secs or None
+
+
 def fetch_source(src, since):
     last_error = "no entries"
     for url in candidate_urls(src):
@@ -106,10 +123,11 @@ def fetch_source(src, since):
             last_error = str(feed.get("bozo_exception") or f"HTTP {feed.get('status', '?')}")
             continue
         via_google = "news.google.com" in url
+        kind = src.get("kind", "written")
         items = []
         for e in feed.entries:
             link = e.get("link", "")
-            if not link.startswith(("https://", "http://")):
+            if not link.startswith(("https://", "http://")):   # only normal web links
                 continue
             title = clean_title(e.get("title"), via_google)
             if "/shorts/" in link or "#shorts" in title.lower():
@@ -117,12 +135,46 @@ def fetch_source(src, since):
             t = entry_time(e)
             if t and t < since:
                 continue
-            items.append({"source": src["name"], "kind": src.get("kind", "written"),
+            items.append({"source": src["name"], "kind": kind,
                           "title": title, "link": link, "time": t,
-                          "thumb": thumbnail(e) if src.get("kind") == "video" else None})
+                          "thumb": thumbnail(e) if kind == "video" else None,
+                          "video_id": e.get("yt_videoid"),
+                          "seconds": parse_seconds(e.get("itunes_duration"))})
         items.sort(key=lambda i: i["time"] or since, reverse=True)
         return items, None
     return [], last_error
+
+
+def iso_duration_seconds(text):
+    m = re.fullmatch(r"P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", text or "")
+    if not m:
+        return None
+    d, h, mi, s = (int(x or 0) for x in m.groups())
+    return d * 86400 + h * 3600 + mi * 60 + s or None
+
+
+def add_video_durations(collected):
+    """Look up YouTube video lengths. Only runs if a YOUTUBE_API_KEY is set."""
+    key = os.environ.get("YOUTUBE_API_KEY")
+    if not key:
+        return
+    items = [i for _, its in collected for i in its if i.get("video_id")]
+    ids = sorted({i["video_id"] for i in items})
+    durations = {}
+    for start in range(0, len(ids), 50):
+        batch = ",".join(ids[start:start + 50])
+        url = ("https://www.googleapis.com/youtube/v3/videos?part=contentDetails"
+               f"&id={batch}&key={quote_plus(key)}")
+        try:
+            with urllib.request.urlopen(url, timeout=20) as r:
+                data = json.load(r)
+        except Exception as exc:     # a failed lookup just means no lengths shown
+            print(f"YouTube lengths unavailable: {exc}")
+            return
+        for v in data.get("items", []):
+            durations[v["id"]] = iso_duration_seconds(v["contentDetails"].get("duration"))
+    for i in items:
+        i["seconds"] = durations.get(i["video_id"]) or i.get("seconds")
 
 
 def collect(settings, sources, now):
@@ -134,18 +186,23 @@ def collect(settings, sources, now):
         if err:
             errors.append(f"{src['name']}: {err}")
         out.append((src, items))
+    add_video_durations(out)
     return out, errors
 
 
-def select(collected, settings, skip=None):
-    """Group items by kind -> source, applying per-source caps. skip = links to leave out."""
+def select(collected, settings, for_email, skip=None):
+    """Group items by kind -> [(source name, items, how many to show before 'more')]."""
     grouped = {k: [] for k, _, _ in KINDS}
     for src, items in collected:
+        if for_email and src.get("email", True) is False:
+            continue
         if skip is not None:
             items = [i for i in items if i["link"] not in skip]
-        items = items[: src.get("max", settings["default_max"])]
+        visible = src.get("max", settings["default_max"])
+        limit = visible if for_email else max(visible, src.get("page_max", settings["page_max"]))
+        items = items[:limit]
         if items:
-            grouped.setdefault(src.get("kind", "written"), []).append((src["name"], items))
+            grouped.setdefault(src.get("kind", "written"), []).append((src["name"], items, visible))
     return grouped
 
 
@@ -163,12 +220,41 @@ def fmt_time(t, tz, now):
     return local.strftime("%d %b %H:%M")
 
 
-def render(grouped, errors, tz, now, heading, page_links=None, new_links=None):
+def fmt_length(secs):
+    if not secs:
+        return ""
+    if secs >= 3600:
+        return f"{secs // 3600} h {secs % 3600 // 60:02d}"
+    return f"{max(1, round(secs / 60))} min"
+
+
+def render_item(i, tz, now, new_links):
     esc = html.escape
-    total = sum(len(items) for groups in grouped.values() for _, items in groups)
+    badge = ""
+    if new_links is not None and i["link"] in new_links:
+        badge = ("<span style='background:#d93025;color:#fff;font-size:10px;font-weight:600;"
+                 "padding:1px 5px;border-radius:3px;margin-right:6px'>NEW</span>")
+    meta = " · ".join(x for x in (fmt_time(i["time"], tz, now), fmt_length(i.get("seconds"))) if x)
+    text = (f"{badge}<a href='{esc(i['link'])}' style='color:#1a4d8f;text-decoration:none;"
+            f"font-size:15px;line-height:1.35'>{esc(i['title'])}</a>"
+            f"<span style='color:#999;font-size:12px'> &nbsp;{esc(meta)}</span>")
+    if i.get("thumb"):
+        return ("<table cellpadding='0' cellspacing='0' style='margin:6px 0;border-collapse:collapse'><tr>"
+                f"<td style='width:128px;vertical-align:top;padding-right:10px'>"
+                f"<a href='{esc(i['link'])}'><img src='{esc(i['thumb'])}' width='120' "
+                f"style='display:block;border-radius:6px' alt=''></a></td>"
+                f"<td style='vertical-align:top'>{text}</td></tr></table>")
+    return f"<p style='margin:6px 0'>{text}</p>"
+
+
+def render(grouped, errors, tz, now, heading, page_links=None, new_links=None, since_label=None):
+    esc = html.escape
+    total = sum(len(items) for groups in grouped.values() for _, items, _ in groups)
     p = ["<!DOCTYPE html><html><head><meta charset='utf-8'>",
          "<meta name='viewport' content='width=device-width,initial-scale=1'>",
-         f"<title>{esc(heading)}</title></head>",
+         f"<title>{esc(heading)}</title>",
+         "<style>summary{cursor:pointer;color:#8a5a00;font-size:13px;margin:4px 0 8px;"
+         "list-style:none}summary::-webkit-details-marker{display:none}</style></head>",
          "<body style='margin:0;background:#f4f2ee;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1d1d1f'>",
          "<div style='max-width:680px;margin:auto;padding:20px 16px'>",
          f"<h1 style='font-family:Georgia,serif;font-size:24px;margin:0 0 4px'>{esc(heading)}</h1>",
@@ -179,7 +265,11 @@ def render(grouped, errors, tz, now, heading, page_links=None, new_links=None):
                "background:#1d1d1f;color:#fff;text-decoration:none;font-size:14px")
         p.append("<p style='margin:0 0 8px'>" + "".join(
             f"<a href='{esc(url)}' style='{btn}'>{esc(label)}</a>" for label, url in page_links) + "</p>")
-    # quick jump links
+    if new_links is not None:
+        p.append("<p style='color:#777;font-size:12px;margin:0 0 8px'>"
+                 "<span style='background:#d93025;color:#fff;font-size:10px;font-weight:600;"
+                 f"padding:1px 5px;border-radius:3px'>NEW</span> = published since your last email "
+                 f"({esc(since_label or '')})</p>")
     jumps = [f"<a href='#{k}' style='color:#555'>{icon} {label}</a>"
              for k, icon, label in KINDS if grouped.get(k)]
     if jumps:
@@ -191,26 +281,17 @@ def render(grouped, errors, tz, now, heading, page_links=None, new_links=None):
             continue
         p.append(f"<h2 id='{kind}' style='font-family:Georgia,serif;font-size:20px;"
                  f"margin:28px 0 4px;border-bottom:2px solid #1d1d1f;padding-bottom:4px'>{icon} {label}</h2>")
-        for name, items in groups:
+        for name, items, visible in groups:
             p.append(f"<h3 style='font-size:13px;text-transform:uppercase;letter-spacing:.05em;"
                      f"color:#8a5a00;margin:16px 0 6px'>{esc(name)}</h3>")
-            for i in items:
-                badge = ""
-                if new_links is not None and i["link"] in new_links:
-                    badge = ("<span style='background:#d93025;color:#fff;font-size:10px;font-weight:600;"
-                             "padding:1px 5px;border-radius:3px;margin-right:6px'>NEW</span>")
-                when = fmt_time(i["time"], tz, now)
-                text = (f"{badge}<a href='{esc(i['link'])}' style='color:#1a4d8f;text-decoration:none;"
-                        f"font-size:15px;line-height:1.35'>{esc(i['title'])}</a>"
-                        f"<span style='color:#999;font-size:12px'> &nbsp;{when}</span>")
-                if i.get("thumb"):
-                    p.append("<table cellpadding='0' cellspacing='0' style='margin:6px 0;border-collapse:collapse'><tr>"
-                             f"<td style='width:128px;vertical-align:top;padding-right:10px'>"
-                             f"<a href='{esc(i['link'])}'><img src='{esc(i['thumb'])}' width='120' "
-                             f"style='display:block;border-radius:6px' alt=''></a></td>"
-                             f"<td style='vertical-align:top'>{text}</td></tr></table>")
-                else:
-                    p.append(f"<p style='margin:6px 0'>{text}</p>")
+            for i in items[:visible]:
+                p.append(render_item(i, tz, now, new_links))
+            extra = items[visible:]
+            if extra:
+                p.append(f"<details><summary>＋ Show {len(extra)} more</summary>")
+                for i in extra:
+                    p.append(render_item(i, tz, now, new_links))
+                p.append("</details>")
 
     if total == 0:
         p.append("<p style='color:#777'>Nothing new from your sources since last time.</p>")
@@ -235,13 +316,14 @@ def current_slot(now_local, hours):
 def send_email(subject, body):
     user = os.environ["GMAIL_USER"]
     pwd = os.environ["GMAIL_APP_PASSWORD"]
-    to = os.environ.get("DIGEST_TO") or user
-    msg = MIMEMultipart("alternative")
-    msg["Subject"], msg["From"], msg["To"] = subject, user, to
-    msg.attach(MIMEText(body, "html", "utf-8"))
+    recipients = [a.strip() for a in (os.environ.get("DIGEST_TO") or user).split(",") if a.strip()]
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
         s.login(user, pwd)
-        s.send_message(msg)
+        for to in recipients:          # one email each, so nobody sees the other addresses
+            msg = MIMEMultipart("alternative")
+            msg["Subject"], msg["From"], msg["To"] = subject, user, to
+            msg.attach(MIMEText(body, "html", "utf-8"))
+            s.send_message(msg)
 
 
 def run_email(force):
@@ -261,14 +343,15 @@ def run_email(force):
             print(f"Not a send time (last slot {slot_key} was too long ago).")
             return
 
-    collected, errors = collect(settings, sources, now)
-    grouped = select(collected, settings, skip=set(state["seen"]))
+    email_sources = [s for s in sources if s.get("email", True) is not False]
+    collected, errors = collect(settings, email_sources, now)
+    grouped = select(collected, settings, for_email=True, skip=set(state["seen"]))
     heading = f"Your news · {now_local:%H:%M}"
     body, total = render(grouped, errors, tz, now, heading)
     send_email(f"{heading} · {total} new", body)
 
     for groups in grouped.values():
-        for _, items in groups:
+        for _, items, _ in groups:
             for i in items:
                 state["seen"][i["link"]] = now.isoformat()
     if not force:
@@ -286,17 +369,22 @@ def run_page(out_path, with_buttons=True):
     now = datetime.now(timezone.utc)
     state = load_state()
     collected, errors = collect(settings, sources, now)
-    grouped = select(collected, settings)
+    grouped = select(collected, settings, for_email=False)
     links = None
     repo = os.environ.get("GITHUB_REPOSITORY")
     if with_buttons and repo:
         base = f"https://github.com/{repo}/actions/workflows"
         links = [("↻ Refresh this page", f"{base}/page.yml"),
                  ("✉ Email me now", f"{base}/email.yml")]
-    body, total = render(grouped, errors, tz, now, "Your news", page_links=links,
-                         new_links=None if not state["seen"] else
-                         {i["link"] for g in grouped.values() for _, its in g for i in its
-                          if i["link"] not in state["seen"]})
+    # NEW = published since the last email went out
+    new_links, since_label = None, None
+    if state.get("last_sent"):
+        last = datetime.fromisoformat(state["last_sent"])
+        new_links = {i["link"] for g in grouped.values() for _, its, _ in g for i in its
+                     if i["time"] and i["time"] > last}
+        since_label = fmt_time(last, tz, now)
+    body, total = render(grouped, errors, tz, now, "Your news",
+                         page_links=links, new_links=new_links, since_label=since_label)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(body, encoding="utf-8")
     print(f"Wrote {out_path} ({total} items, {len(errors)} unreachable)")

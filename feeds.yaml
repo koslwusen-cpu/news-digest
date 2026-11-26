@@ -6,13 +6,17 @@
 #   youtube:      a YouTube channel ID (starts with UC...). Shorts are skipped.
 #   google_news:  a Google News search, for sites with no feed of their own
 #                 (add  lang: fr  for French results)
-# max: how many items per source per email (default below)
+# Optional, per source:
+#   max: 2          items per source in the email (and shown before "Show more" on the page)
+#   page_max: 15    how many the page can show in total, behind "Show more"
+#   email: false    page only: the source never goes in the email
 # ---------------------------------------------------------------
 
 settings:
   timezone: Europe/Paris
   email_hours: [6, 12, 18]   # local times the email goes out
   default_max: 3             # items per source per email
+  page_max: 10               # items per source on the page (extras behind "Show more")
   lookback_hours: 24         # never show anything older than this
 
 sources:
@@ -77,10 +81,40 @@ sources:
     url: https://feeds.npr.org/500005/podcast.xml
     max: 1
 
-  # - name: WSJ What's News
-  #   kind: audio
-  #   url: https://feeds.simplecast.com/BA5QWI2p
-  #   max: 1
+  - name: BBC Global News Podcast
+    kind: audio
+    url: https://podcasts.files.bbci.co.uk/p02nq0gn.rss
+    max: 1
+
+  - name: Reuters World News
+    kind: audio
+    url: https://feeds.megaphone.fm/reutersworldnews
+    max: 1
+
+  - name: CNN 5 Things
+    kind: audio
+    url: https://feeds.megaphone.fm/WMHY2007701094
+    max: 1
+
+  - name: WSJ What's News
+    kind: audio
+    url: https://feeds.simplecast.com/BA5QWI2p
+    max: 1
+
+  - name: The Guardian – Today in Focus
+    kind: audio
+    url: https://www.theguardian.com/news/series/todayinfocus/podcast.xml
+    max: 1
+
+  - name: Al Jazeera – The Take
+    kind: audio
+    url: https://www.omnycontent.com/d/playlist/9c074afa-3313-47e8-b802-a9f900789975/09af2160-238f-48b2-b20b-ad4b00ebd8e7/b86dddc1-67a5-41c2-a13c-ad4b00ebd8f5/podcast.rss
+    max: 1
+
+  - name: Le Monde – L'Heure du Monde
+    kind: audio
+    url: https://feeds.acast.com/public/shows/68db9d2509b1c365e44318ca
+    max: 1
 
   # ---------- Video ----------
   - name: HugoDécrypte – Actus du jour
